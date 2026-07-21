@@ -22,14 +22,13 @@ This API provides:
 
 ```bash
 git clone https://github.com/your-org/agri-lend-api.git
-cd agri-lend-api
+cd agri-lend-api\Functions
 npm install
-cd functions && npm install
 ```
 
 ### Setup
 
-See [SETUP.md](./docs/SETUP.md) for detailed instructions.
+See [SETUP.md](./Docs/SETUP.md) for detailed instructions.
 
 ### Local Development
 
@@ -47,6 +46,6 @@ firebase deploy --only functions
 
 ## API Documentation
 
-See [API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md) for endpoints and usage examples.
+See [API_DOCUMENTATION.md](./Docs/API_DOCUMENTATION.md) for endpoints and usage examples.
 
 ## Repository Structure
