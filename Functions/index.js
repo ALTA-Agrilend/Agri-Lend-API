@@ -13,7 +13,6 @@
 const functions = require('firebase-functions');
 const express = require('express');
 const cors = require('cors');
-const ee = require('@google/earthengine');
 const fs = require('fs');
 const path = require('path');
 
@@ -25,6 +24,7 @@ app.use(cors({ origin: true }));
 app.use(express.json());
 
 // Track if EE is initialized (avoid re-initializing)
+let ee = null;
 let eeInitialized = false;
 let eeInitPromise = null;
 
@@ -33,14 +33,14 @@ let eeInitPromise = null;
  * This runs ONCE and caches the result
  */
 function initializeEarthEngine() {
-  // If already initialized, return cached promise
   if (eeInitPromise) {
     return eeInitPromise;
   }
 
   eeInitPromise = new Promise((resolve, reject) => {
     try {
-      // Load the service account key JSON file
+      ee = require('@google/earthengine');
+
       const keyPath = path.join(__dirname, 'gee-service-account-key.json');
       
       if (!fs.existsSync(keyPath)) {
@@ -54,7 +54,6 @@ function initializeEarthEngine() {
 
       console.log('Authenticating with Earth Engine...');
 
-      // Authenticate with Earth Engine using service account
       ee.data.authenticateViaPrivateKey(
         key,
         () => {
@@ -894,3 +893,13 @@ app.use((err, req, res, next) => {
 // EXPORT AS FIREBASE CLOUD FUNCTION
 // ============================================================
 exports.agriLendAPI = functions.https.onRequest(app);
+
+// ============================================================
+// DIRECT SERVER (for Render / local dev)
+// ============================================================
+if (require.main === module) {
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, () => {
+    console.log(`Agri-Lend API running on port ${PORT}`);
+  });
+}
