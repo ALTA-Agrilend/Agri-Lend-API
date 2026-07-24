@@ -41,8 +41,12 @@ function initializeEarthEngine() {
     try {
       ee = require('@google/earthengine');
 
-      const keyPath = path.join(__dirname, 'gee-service-account-key.json');
+      let keyPath = path.join(__dirname, 'gee-service-account-key.json');
       
+      if (!fs.existsSync(keyPath)) {
+        keyPath = '/etc/secrets/gee-service-account-key.json';
+      }
+
       if (!fs.existsSync(keyPath)) {
         return reject(
           new Error('gee-service-account-key.json not found in functions folder')
