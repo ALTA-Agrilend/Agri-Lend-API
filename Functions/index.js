@@ -248,7 +248,7 @@ function getAnnualPeakValues(roi) {
   var yearsList = [2021, 2022, 2023, 2024, 2025];
   var detectedCropType = getSpecificCropType(roi);
   
-  var historicalRecords = yearsList.map(function(year) {
+  var historicalRecords = ee.List(yearsList).map(function(year) {
     year = ee.Number(year);
     var start = ee.Date.fromYMD(year, 1, 1);
     var end = ee.Date.fromYMD(year, 12, 31);
@@ -278,7 +278,7 @@ function getAnnualPeakValues(roi) {
       dict
     );
   });
-  
+
   return {
     historical_annual_records: historicalRecords.getInfo()
   };
