@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: agri-lend-api-fastapi
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+    secretFiles:
+      - key: GEE_SERVICE_ACCOUNT_KEY
+        path: /etc/secrets/gee-service-account-key.json
