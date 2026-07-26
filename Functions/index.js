@@ -825,40 +825,49 @@ app.get('/api/v1/docs', (req, res) => {
   res.json({
     service: 'Agri-Lend Geospatial Telemetry API',
     version: '1.0.0',
+    base_url: 'https://agri-lend-api.onrender.com',
+    request_format: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        roiCoordinates: '[[lon, lat], [lon, lat], ...] — polygon vertices',
+        farmId: 'optional string identifier'
+      }
+    },
     endpoints: [
       {
         name: 'Get All Telemetry Data',
         method: 'POST',
         path: '/api/v1/farms/telemetry',
-        description: 'Returns all 4 data categories at once',
-        requestBody: {
-          roiCoordinates: '[[lon1, lat1], [lon2, lat2], ...]',
-          farmId: 'optional farm identifier'
+        description: 'Returns annual peaks, environment, land security, and NDVI in one call',
+        example_request: {
+          roiCoordinates: [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]],
+          farmId: 'farm-001'
         }
       },
       {
         name: 'Get Annual Peaks',
         method: 'POST',
         path: '/api/v1/farms/annual-peaks',
-        description: 'NDVI peaks by year + dominant land cover'
+        description: 'NDVI peak values per year (2021-2025) with dominant land cover and detected crop type'
       },
       {
         name: 'Get Environment Data',
         method: 'POST',
         path: '/api/v1/farms/environment',
-        description: 'Rainfall, temperature, climate baselines'
+        description: 'Monthly rainfall & temperature for actual season vs historical baseline (2005-2025)'
       },
       {
         name: 'Get Land Security',
         method: 'POST',
         path: '/api/v1/farms/land-security',
-        description: 'Soil metrics, terrain slope, erosion risk'
+        description: 'Soil metrics (clay, organic carbon, pH, nitrogen), terrain slope, distance to water'
       },
       {
         name: 'Get NDVI Timeline',
         method: 'POST',
         path: '/api/v1/farms/ndvi',
-        description: 'Weekly NDVI values + crop type'
+        description: 'Weekly mean NDVI values (2023-2026), crop type, environmental exposure metrics'
       },
       {
         name: 'Health Check',

@@ -1,0 +1,95 @@
+{
+  "info": {
+    "name": "Agri-Lend Geospatial API",
+    "description": "API for querying satellite-derived farm data (NDVI, rainfall, temperature, soil metrics).\n\n**Base URL:** https://agri-lend-api.onrender.com\n\nAll POST endpoints accept:\n```json\n{\n  \"roiCoordinates\": [[lon, lat], [lon, lat], ...],\n  \"farmId\": \"optional-id\"\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "https://agri-lend-api.onrender.com/api/v1/health",
+        "header": []
+      }
+    },
+    {
+      "name": "API Documentation",
+      "request": {
+        "method": "GET",
+        "url": "https://agri-lend-api.onrender.com/api/v1/docs",
+        "header": []
+      }
+    },
+    {
+      "name": "Get All Telemetry Data",
+      "request": {
+        "method": "POST",
+        "url": "https://agri-lend-api.onrender.com/api/v1/farms/telemetry",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roiCoordinates\": [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]],\n  \"farmId\": \"farm-001\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Annual Peaks",
+      "request": {
+        "method": "POST",
+        "url": "https://agri-lend-api.onrender.com/api/v1/farms/annual-peaks",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roiCoordinates\": [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]]\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Environment Data",
+      "request": {
+        "method": "POST",
+        "url": "https://agri-lend-api.onrender.com/api/v1/farms/environment",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roiCoordinates\": [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]]\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Land Security",
+      "request": {
+        "method": "POST",
+        "url": "https://agri-lend-api.onrender.com/api/v1/farms/land-security",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roiCoordinates\": [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]]\n}"
+        }
+      }
+    },
+    {
+      "name": "Get NDVI Timeline",
+      "request": {
+        "method": "POST",
+        "url": "https://agri-lend-api.onrender.com/api/v1/farms/ndvi",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roiCoordinates\": [[38.5, 8.5], [38.6, 8.5], [38.6, 8.6], [38.5, 8.6]]\n}"
+        }
+      }
+    }
+  ]
+}
