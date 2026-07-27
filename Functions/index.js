@@ -369,7 +369,7 @@ function getLandSecurityData(roi) {
     reducer: ee.Reducer.mean(),
     geometry: roi,
     scale: 30
-  }).get('slope');
+  }).get('slope').getInfo();
   
   var clay = ee.Image("ISDASOIL/Africa/v1/clay_content")
     .select('mean_0_20')
@@ -378,7 +378,7 @@ function getLandSecurityData(roi) {
       geometry: roi,
       scale: 30
     })
-    .get('mean_0_20');
+    .get('mean_0_20').getInfo();
   
   var carbon = ee.Image("ISDASOIL/Africa/v1/carbon_organic")
     .select('mean_0_20')
@@ -387,7 +387,7 @@ function getLandSecurityData(roi) {
       geometry: roi,
       scale: 30
     })
-    .get('mean_0_20');
+    .get('mean_0_20').getInfo();
   
   var ph = ee.Image("ISDASOIL/Africa/v1/ph")
     .select('mean_0_20')
@@ -396,7 +396,7 @@ function getLandSecurityData(roi) {
       geometry: roi,
       scale: 30
     })
-    .get('mean_0_20');
+    .get('mean_0_20').getInfo();
   
   var nitrogen = ee.Image("ISDASOIL/Africa/v1/nitrogen_total")
     .select('mean_0_20')
@@ -405,7 +405,7 @@ function getLandSecurityData(roi) {
       geometry: roi,
       scale: 30
     })
-    .get('mean_0_20');
+    .get('mean_0_20').getInfo();
   
   var landData = {
     type: "FeatureCollection",
