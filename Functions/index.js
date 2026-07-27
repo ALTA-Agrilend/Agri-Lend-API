@@ -548,6 +548,119 @@ function getRecentNDVI(roi) {
   return ndviData;
 }
 
+function getRecent5WeeksNDVI(roi) {
+  var now = new Date();
+  var fiveWeeksAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
+  var startDate = fiveWeeksAgo.toISOString().split('T')[0];
+  var endDate = now.toISOString().split('T')[0];
+
+  var s2Collection = getS2Collection(roi);
+  var recentS2 = s2Collection
+    .filterDate(startDate, endDate)
+    .sort('system:time_start');
+
+  var currentLandStatus = getDominantClass('2025-01-01', '2026-01-01', roi);
+
+  var previousPeak = s2Collection
+    .filterDate('2024-01-01', '2025-01-01')
+    .select('NDVI')
+    .max()
+    .reduceRegion({
+      reducer: ee.Reducer.max(),
+      geometry: roi,
+      scale: 10
+    })
+    .get('NDVI', 0);
+
+  var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(roi);
+  var era5 = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR").filterBounds(roi);
+
+  var histRain = safeGet(
+    chirps.filterDate('2005-01-01', '2025-01-01').mean(),
+    'precipitation',
+    5000,
+    roi
+  );
+
+  var currRain = safeGet(
+    chirps.filterDate('2025-01-01', '2026-01-01').mean(),
+    'precipitation',
+    5000,
+    roi
+  );
+
+  var rainfallDeficit = ee.Number(100)
+    .subtract(currRain.divide(histRain.max(0.001)).multiply(100))
+    .max(0);
+
+  var histTemp = safeGet(
+    era5.filterDate('2005-01-01', '2025-01-01').mean(),
+    'temperature_2m',
+    5000,
+    roi
+  );
+
+  var currTemp = safeGet(
+    era5.filterDate('2025-01-01', '2026-01-01').mean(),
+    'temperature_2m',
+    5000,
+    roi
+  );
+
+  var tempAnomaly = ee.Number(
+    ee.Algorithms.If(histTemp.gt(0), currTemp.subtract(histTemp), 0)
+  );
+
+  var slope = ee.Terrain.slope(ee.Image('USGS/SRTMGL1_003'))
+    .reduceRegion({
+      reducer: ee.Reducer.mean(),
+      geometry: roi,
+      scale: 30
+    })
+    .get('slope');
+
+  var erosionRisk = ee.Number(slope)
+    .divide(30)
+    .min(1)
+    .max(0);
+
+  var recentTimeline = recentS2.map(function(img) {
+    var ndvi = img.select('NDVI').reduceRegion({
+      reducer: ee.Reducer.mean(),
+      geometry: roi,
+      scale: 10
+    }).get('NDVI');
+
+    return ee.Feature(null, {
+      "week_start_date": img.date().format("YYYY-MM-dd'T'HH:mm:ss'Z'"),
+      "mean_ndvi": ndvi
+    });
+  }).filter(ee.Filter.notNull(['mean_ndvi']));
+
+  var timelineData = recentTimeline.getInfo().features.map(function(f) {
+    return {
+      "week_start_date": f.properties.week_start_date,
+      "mean_ndvi": parseFloat(f.properties.mean_ndvi.toFixed(4))
+    };
+  });
+
+  var ndviData = {
+    farm_metadata: {
+      crop_type_declared: getSpecificCropType(roi).getInfo(),
+      land_status: currentLandStatus.getInfo(),
+      previous_peak_performance: parseFloat(ee.Number(previousPeak).format('%.2f').getInfo()),
+      environmental_exposure_metrics: {
+        rainfall_deficit_percentage: parseFloat(ee.Number(rainfallDeficit).format('%.1f').getInfo()),
+        temperature_anomaly_celsius: parseFloat(ee.Number(tempAnomaly).format('%.1f').getInfo()),
+        topsoil_erosion_risk_index: parseFloat(erosionRisk.format('%.2f').getInfo())
+      }
+    },
+    massive_weekly_historical_timeline: timelineData
+  };
+
+  return ndviData;
+}
+
 // ============================================================
 // HELPER: Convert coordinates to GEE Geometry
 // ============================================================
@@ -805,7 +918,46 @@ app.post('/api/v1/farms/ndvi', async (req, res) => {
 });
 
 /**
- * ENDPOINT 6: Health Check
+ * ENDPOINT 6: Get Recent 5 Weeks NDVI
+ * POST /api/v1/farms/recent-ndvi
+ */
+app.post('/api/v1/farms/recent-ndvi', async (req, res) => {
+  try {
+    console.log('📥 Request: /api/v1/farms/recent-ndvi');
+    await initializeEarthEngine();
+
+    const { roiCoordinates, farmId } = req.body;
+
+    if (!roiCoordinates) {
+      return res.status(400).json({
+        success: false,
+        error: 'roiCoordinates required'
+      });
+    }
+
+    const roi = createGeometryFromCoordinates(roiCoordinates);
+    const data = getRecent5WeeksNDVI(roi);
+
+    res.json({
+      success: true,
+      data,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        farm_id: farmId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * ENDPOINT 7: Health Check
  * GET /api/v1/health
  */
 app.get('/api/v1/health', (req, res) => {
@@ -869,6 +1021,12 @@ app.get('/api/v1/docs', (req, res) => {
         method: 'POST',
         path: '/api/v1/farms/ndvi',
         description: 'Weekly mean NDVI values (2023-2026), crop type, environmental exposure metrics'
+      },
+      {
+        name: 'Get Recent 5 Weeks NDVI',
+        method: 'POST',
+        path: '/api/v1/farms/recent-ndvi',
+        description: 'NDVI for the last 5 weeks from today, crop type, environmental exposure metrics'
       },
       {
         name: 'Health Check',
