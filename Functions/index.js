@@ -352,7 +352,8 @@ function getEnvironmentData(roi) {
         extreme_events_metrics: {
           active_season_consecutive_dry_days: 19,
           historical_avg_max_consecutive_dry_days: 12,
-          severe_downpour_months_count: 1
+          severe_downpour_months_count: 1,
+          regional_disease_vulnerability_index: 1.15
         }
       }
     }]
