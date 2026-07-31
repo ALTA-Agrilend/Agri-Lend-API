@@ -108,9 +108,13 @@ function addNDVI(image) {
 }
 
 function getS2Collection(roi) {
+  var collectionEndDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
+
   return ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
     .filterBounds(roi)
-    .filterDate('2021-01-01', '2026-02-01')
+    .filterDate('2021-01-01', collectionEndDate)
     .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
     .map(maskS2Clouds)
     .map(addNDVI);
@@ -142,7 +146,11 @@ function getDominantClass(startDate, endDate, roi) {
   
   return ee.Algorithms.If(
     modeVal.gte(0),
-    classLabels.get(modeVal.toInt()),
+    ee.Algorithms.If(
+      modeVal.eq(7),
+      'bare_land',
+      classLabels.get(modeVal.toInt())
+    ),
     'unknown'
   );
 }
@@ -456,10 +464,64 @@ function getLandSecurityData(roi) {
   return landData;
 }
 
+function getWeeklyNDVITimeline(s2Collection, roi, startDate, endDate) {
+  var startMillis = ee.Date(startDate).millis();
+  var weekMillis = 7 * 24 * 60 * 60 * 1000;
+  var recentTimeline = s2Collection
+    .filterDate(startDate, endDate)
+    .sort('system:time_start')
+    .map(function(img) {
+      var ndvi = img.select('NDVI').reduceRegion({
+        reducer: ee.Reducer.mean(),
+        geometry: roi,
+        scale: 10,
+        bestEffort: true,
+        maxPixels: 1e8
+      }).get('NDVI');
+
+      var weekIndex = ee.Number(img.date().millis())
+        .subtract(startMillis)
+        .divide(weekMillis)
+        .floor();
+
+      return ee.Feature(null, {
+        week_start_date: ee.Date(startMillis).advance(weekIndex, 'week')
+          .format("YYYY-MM-dd'T'00:00:00'Z'"),
+        mean_ndvi: ndvi
+      });
+    })
+    .filter(ee.Filter.notNull(['mean_ndvi']));
+
+  var timelineFeatures = recentTimeline.getInfo().features;
+  var weeklyValues = {};
+
+  timelineFeatures.forEach(function(feature) {
+    var week = feature.properties.week_start_date;
+    var value = Number(feature.properties.mean_ndvi);
+
+    if (!weeklyValues[week]) {
+      weeklyValues[week] = { total: 0, count: 0 };
+    }
+
+    weeklyValues[week].total += value;
+    weeklyValues[week].count += 1;
+  });
+
+  return Object.keys(weeklyValues).sort().map(function(week) {
+    return {
+      week_start_date: week,
+      mean_ndvi: Number(
+        (weeklyValues[week].total / weeklyValues[week].count).toFixed(4)
+      )
+    };
+  });
+}
+
 function getRecentNDVI(roi) {
   var s2Collection = getS2Collection(roi);
   var recentS2 = s2Collection
-    .filterDate('2023-12-01', '2026-02-01')
+    .filterDate('2023-12-01', new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0])
     .sort('system:time_start');
   
   var currentLandStatus = getDominantClass('2025-01-01', '2026-01-01', roi);
@@ -527,25 +589,12 @@ function getRecentNDVI(roi) {
     .min(1)
     .max(0);
   
-  var recentTimeline = recentS2.map(function(img) {
-    var ndvi = img.select('NDVI').reduceRegion({
-      reducer: ee.Reducer.mean(),
-      geometry: roi,
-      scale: 10
-    }).get('NDVI');
-    
-    return ee.Feature(null, {
-      "week_start_date": img.date().format("YYYY-MM-dd'T'HH:mm:ss'Z'"),
-      "mean_ndvi": ndvi
-    });
-  }).filter(ee.Filter.notNull(['mean_ndvi']));
-  
-  var timelineData = recentTimeline.getInfo().features.map(function(f) {
-    return {
-      "week_start_date": f.properties.week_start_date,
-      "mean_ndvi": parseFloat(f.properties.mean_ndvi.toFixed(4))
-    };
-  });
+  var timelineData = getWeeklyNDVITimeline(
+    s2Collection,
+    roi,
+    '2023-12-01',
+    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
   
   var ndviData = {
     farm_metadata: {
@@ -565,15 +614,9 @@ function getRecentNDVI(roi) {
 }
 
 function getRecent5WeeksNDVI(roi) {
-  var now = new Date();
-  var fiveWeeksAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
-  var startDate = fiveWeeksAgo.toISOString().split('T')[0];
-  var endDate = now.toISOString().split('T')[0];
-
   var s2Collection = getS2Collection(roi);
-  var recentS2 = s2Collection
-    .filterDate(startDate, endDate)
-    .sort('system:time_start');
+  var endDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0];
 
   var currentLandStatus = getDominantClass('2025-01-01', '2026-01-01', roi);
 
@@ -640,25 +683,12 @@ function getRecent5WeeksNDVI(roi) {
     .min(1)
     .max(0);
 
-  var recentTimeline = recentS2.map(function(img) {
-    var ndvi = img.select('NDVI').reduceRegion({
-      reducer: ee.Reducer.mean(),
-      geometry: roi,
-      scale: 10
-    }).get('NDVI');
-
-    return ee.Feature(null, {
-      "week_start_date": img.date().format("YYYY-MM-dd'T'HH:mm:ss'Z'"),
-      "mean_ndvi": ndvi
-    });
-  }).filter(ee.Filter.notNull(['mean_ndvi']));
-
-  var timelineData = recentTimeline.getInfo().features.map(function(f) {
-    return {
-      "week_start_date": f.properties.week_start_date,
-      "mean_ndvi": parseFloat(f.properties.mean_ndvi.toFixed(4))
-    };
-  });
+  var timelineData = getWeeklyNDVITimeline(
+    s2Collection,
+    roi,
+    '2023-12-01',
+    endDate
+  );
 
   var ndviData = {
     farm_metadata: {
