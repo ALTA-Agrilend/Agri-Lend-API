@@ -143,6 +143,9 @@ function safeGet(img, band, scale, roi) {
  */
 function buildMonthlyDict(dataset, yearStart, yearEnd, band, stat, isTemp, roi) {
   var monthsList = ee.List.sequence(1, 12);
+  // Climate products have coarse pixels. Sample the pixel containing the ROI
+  // centroid so small polygons do not produce empty reductions.
+  var climatePoint = roi.centroid(1);
   
   var vals = monthsList.map(function(m) {
     var filtered = dataset
@@ -153,8 +156,10 @@ function buildMonthlyDict(dataset, yearStart, yearEnd, band, stat, isTemp, roi) 
     
     var val = img.reduceRegion({
       reducer: ee.Reducer.mean(),
-      geometry: roi,
-      scale: 5000
+      geometry: climatePoint,
+      scale: 5000,
+      bestEffort: true,
+      maxPixels: 1e8
     }).get(band, null);
     
     return ee.Algorithms.If(
@@ -223,7 +228,8 @@ function getAnnualPeakValues(roi) {
 // MAIN FUNCTION 2: Environment Data
 // ============================================================
 function getEnvironmentData(roi) {
-  var actualYear = 2025;
+  var actualYear = new Date().getUTCFullYear();
+  var historicalEndYear = actualYear - 1;
   
   var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(roi);
   var era5 = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR").filterBounds(roi);
@@ -239,9 +245,9 @@ function getEnvironmentData(roi) {
       id: "0",
       properties: {
         metadata: {
-          actual_season_evaluated: 2026,
+          actual_season_evaluated: actualYear,
           dataset_source: "CHIRPS & ECMWF/ERA5_LAND/MONTHLY_AGGREGATED via GEE",
-          historical_baseline_range: "2005-2025",
+          historical_baseline_range: "2005-" + historicalEndYear,
           measurement_units: {
             rainfall: "mm",
             temperature: "Celsius"
@@ -260,7 +266,7 @@ function getEnvironmentData(roi) {
         historical_monthly_baselines: buildMonthlyDict(
           chirps,
           2005,
-          2024,
+          historicalEndYear,
           'precipitation',
           'mean',
           false,
@@ -280,7 +286,7 @@ function getEnvironmentData(roi) {
         historical_monthly_max_temp: buildMonthlyDict(
           era5,
           2005,
-          2024,
+          historicalEndYear,
           'temperature_2m',
           'mean',
           true,
