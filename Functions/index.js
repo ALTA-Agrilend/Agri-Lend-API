@@ -216,8 +216,14 @@ function buildMonthlyDict(dataset, yearStart, yearEnd, band, stat, isTemp, roi) 
     var filtered = dataset
       .filter(ee.Filter.calendarRange(yearStart, yearEnd, 'year'))
       .filter(ee.Filter.calendarRange(m, m, 'month'));
-    
-    var img = stat === 'sum' ? filtered.sum() : filtered.mean();
+
+    var hasData = filtered.size().gt(0);
+    var calculatedImage = stat === 'sum' ? filtered.sum() : filtered.mean();
+    var img = ee.Image(ee.Algorithms.If(
+      hasData,
+      calculatedImage.select(band),
+      ee.Image.constant(0).rename(band)
+    ));
     
     var val = img.reduceRegion({
       reducer: ee.Reducer.mean(),
@@ -228,13 +234,17 @@ function buildMonthlyDict(dataset, yearStart, yearEnd, band, stat, isTemp, roi) 
     }).get(band, null);
     
     return ee.Algorithms.If(
-      ee.Algorithms.IsEqual(val, null),
-      "null",
+      hasData,
       ee.Algorithms.If(
-        isTemp,
-        ee.Number(val).subtract(273.15),
-        val
-      )
+        ee.Algorithms.IsEqual(val, null),
+        0,
+        ee.Algorithms.If(
+          isTemp,
+          ee.Number(val).subtract(273.15),
+          val
+        )
+      ),
+      0
     );
   });
   
