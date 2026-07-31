@@ -29,15 +29,17 @@ function addNDVI(image) {
 /**
  * Get Sentinel-2 collection with NDVI for a given ROI
  */
-function getS2Collection(roi) {
+function getS2Collection(roi, maxCloudPercentage) {
   var collectionEndDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0];
 
+  var cloudThreshold = maxCloudPercentage || 30;
+
   return ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
     .filterBounds(roi)
     .filterDate('2021-01-01', collectionEndDate)
-    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cloudThreshold))
     .map(maskS2Clouds)
     .map(addNDVI);
 }
@@ -404,7 +406,13 @@ function getLandSecurityData(roi) {
   return landData;
 }
 
-function getWeeklyNDVITimeline(s2Collection, roi, startDate, endDate) {
+function getWeeklyNDVITimeline(
+  s2Collection,
+  roi,
+  startDate,
+  endDate,
+  includeEmptyWeeks
+) {
   var startMillis = ee.Date(startDate).millis();
   var weekMillis = 7 * 24 * 60 * 60 * 1000;
   var recentTimeline = s2Collection
@@ -446,6 +454,19 @@ function getWeeklyNDVITimeline(s2Collection, roi, startDate, endDate) {
     weeklyValues[week].total += value;
     weeklyValues[week].count += 1;
   });
+
+  if (includeEmptyWeeks) {
+    var weekStart = new Date(startDate + 'T00:00:00Z');
+    var weekEnd = new Date(endDate + 'T00:00:00Z');
+
+    while (weekStart < weekEnd) {
+      var week = weekStart.toISOString().replace('.000Z', 'Z');
+      if (!weeklyValues[week]) {
+        weeklyValues[week] = { total: 0, count: 0 };
+      }
+      weekStart.setUTCDate(weekStart.getUTCDate() + 7);
+    }
+  }
 
   return Object.keys(weeklyValues).sort().map(function(week) {
     return {
