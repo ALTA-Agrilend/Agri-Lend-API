@@ -517,6 +517,34 @@ function getWeeklyNDVITimeline(s2Collection, roi, startDate, endDate) {
   });
 }
 
+function getRecentCompletedWeekDates() {
+  var today = new Date();
+  var todayUtc = new Date(Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  ));
+  var daysSinceMonday = (todayUtc.getUTCDay() + 6) % 7;
+  var currentWeekStart = new Date(todayUtc);
+  currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() - daysSinceMonday);
+
+  // The current week is incomplete, so the previous Monday is the latest
+  // completed week start.
+  var latestCompletedWeekStart = new Date(currentWeekStart);
+  latestCompletedWeekStart.setUTCDate(
+    latestCompletedWeekStart.getUTCDate() - 7
+  );
+
+  var firstWeekStart = new Date(latestCompletedWeekStart);
+  firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() - 28);
+
+  return {
+    startDate: firstWeekStart.toISOString().split('T')[0],
+    endDate: new Date(latestCompletedWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0]
+  };
+}
+
 function getRecentNDVI(roi) {
   var s2Collection = getS2Collection(roi);
   var recentS2 = s2Collection
@@ -615,8 +643,7 @@ function getRecentNDVI(roi) {
 
 function getRecent5WeeksNDVI(roi) {
   var s2Collection = getS2Collection(roi);
-  var endDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    .toISOString().split('T')[0];
+  var recentWeeks = getRecentCompletedWeekDates();
 
   var currentLandStatus = getDominantClass('2025-01-01', '2026-01-01', roi);
 
@@ -686,8 +713,8 @@ function getRecent5WeeksNDVI(roi) {
   var timelineData = getWeeklyNDVITimeline(
     s2Collection,
     roi,
-    '2023-12-01',
-    endDate
+    recentWeeks.startDate,
+    recentWeeks.endDate
   );
 
   var ndviData = {
@@ -1083,7 +1110,7 @@ app.get('/api/v1/docs', (req, res) => {
         name: 'Get Recent 5 Weeks NDVI',
         method: 'POST',
         path: '/api/v1/farms/recent-ndvi',
-        description: 'NDVI for the last 5 weeks from today, crop type, environmental exposure metrics'
+        description: 'NDVI for the five most recent completed Monday-Sunday weeks, crop type, environmental exposure metrics'
       },
       {
         name: 'Health Check',

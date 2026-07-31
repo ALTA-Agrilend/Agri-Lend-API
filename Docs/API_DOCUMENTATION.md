@@ -29,6 +29,7 @@ The Agri-Lend Geospatial Telemetry API provides satellite-based agricultural dat
 - **Environment Data** — Rainfall and temperature metrics
 - **Land Security** — Soil composition and terrain analysis
 - **NDVI Timeline** — Weekly vegetation indices with crop type detection
+- **Recent NDVI** — Mean NDVI for the five most recent completed Monday-Sunday weeks
 
 ### Key Features
 

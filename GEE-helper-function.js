@@ -457,6 +457,34 @@ function getWeeklyNDVITimeline(s2Collection, roi, startDate, endDate) {
   });
 }
 
+function getRecentCompletedWeekDates() {
+  var today = new Date();
+  var todayUtc = new Date(Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  ));
+  var daysSinceMonday = (todayUtc.getUTCDay() + 6) % 7;
+  var currentWeekStart = new Date(todayUtc);
+  currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() - daysSinceMonday);
+
+  // The current week is incomplete, so the previous Monday is the latest
+  // completed week start.
+  var latestCompletedWeekStart = new Date(currentWeekStart);
+  latestCompletedWeekStart.setUTCDate(
+    latestCompletedWeekStart.getUTCDate() - 7
+  );
+
+  var firstWeekStart = new Date(latestCompletedWeekStart);
+  firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() - 28);
+
+  return {
+    startDate: firstWeekStart.toISOString().split('T')[0],
+    endDate: new Date(latestCompletedWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0]
+  };
+}
+
 // ============================================================
 // MAIN FUNCTION 4: Recent NDVI with Enhanced Metadata
 // ============================================================
